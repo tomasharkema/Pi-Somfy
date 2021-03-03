@@ -443,12 +443,16 @@ class operateShutters(MyLog):
 
            try:
                pi = pigpio.pi()  # local GPIO only
-               self.LogInfo ("pigpio's pi instantiated")
+               if not pi.connected:
+                   self.LogError("pigpio connection could not be established. Check logs to get more details.")
+                   return False
+               else:
+                   self.LogInfo("pigpio's pi instantiated.")
            except Exception as e:
                start_pigpiod_exception = str(e)
-               self.LogError ("problem instantiating pi: {}".format(start_pigpiod_exception))
+               self.LogError("problem instantiating pi: {}".format(start_pigpiod_exception))
        else:
-           self.LogError ("start pigpiod was unsuccessful.")
+           self.LogError("start pigpiod was unsuccessful.")
            return False
        return True
 
