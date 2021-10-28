@@ -265,7 +265,7 @@ class FlaskAppWrapper(MyLog):
         durations = {}
         for k in self.config.Shutters:
             shutters[k] = self.config.Shutters[k]['name']  
-            durations[k] = self.config.Shutters[k]['duration']            
+            durations[k] = self.config.Shutters[k]['durationDown']            
         obj = {'Latitude': self.config.Latitude, 'Longitude': self.config.Longitude, 'Shutters': shutters, 'ShutterDurations': durations, 'Schedule': self.schedule.getScheduleAsDict()}
         self.LogDebug("getConfig called, sending: "+json.dumps(obj))
         return obj

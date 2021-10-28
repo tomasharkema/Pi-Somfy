@@ -106,7 +106,7 @@ class Shutter(MyLog):
         state.registerCommand('down')
 
         # wait and set final position only if not interrupted in between
-        timeToWait = state.position/100*self.config.Shutters[shutterId]['duration']
+        timeToWait = state.position/100*self.config.Shutters[shutterId]['durationDown']
         t = threading.Thread(target = self.waitAndSetFinalPosition, args = (shutterId, timeToWait, 0))
         t.start()
 
@@ -116,7 +116,7 @@ class Shutter(MyLog):
         self.LogInfo("["+self.config.Shutters[shutterId]['name']+"] Going down") 
         self.sendCommand(shutterId, self.buttonDown, self.config.SendRepeat)
         state.registerCommand('down')
-        time.sleep((state.position-percentage)/100*self.config.Shutters[shutterId]['duration'])
+        time.sleep((state.position-percentage)/100*self.config.Shutters[shutterId]['durationDown'])
         self.LogInfo("["+self.config.Shutters[shutterId]['name']+"] Stop at partial position requested")
         self.sendCommand(shutterId, self.buttonStop, self.config.SendRepeat)
 
@@ -130,7 +130,7 @@ class Shutter(MyLog):
         state.registerCommand('up')
 
         # wait and set final position only if not interrupted in between
-        timeToWait = (100-state.position)/100*self.config.Shutters[shutterId]['duration']
+        timeToWait = (100-state.position)/100*self.config.Shutters[shutterId]['durationUp']
         t = threading.Thread(target = self.waitAndSetFinalPosition, args = (shutterId, timeToWait, 100))
         t.start()
 
@@ -140,7 +140,7 @@ class Shutter(MyLog):
         self.LogInfo("["+self.config.Shutters[shutterId]['name']+"] Going up")
         self.sendCommand(shutterId, self.buttonUp, self.config.SendRepeat)
         state.registerCommand('up')
-        time.sleep((percentage-state.position)/100*self.config.Shutters[shutterId]['duration'])
+        time.sleep((percentage-state.position)/100*self.config.Shutters[shutterId]['durationUp'])
         self.LogInfo("["+self.config.Shutters[shutterId]['name']+"] Stop at partial position requested")
         self.sendCommand(shutterId, self.buttonStop, self.config.SendRepeat)
 
@@ -157,27 +157,34 @@ class Shutter(MyLog):
         self.LogDebug("["+shutterId+"] Seconds since last command: " + str(secondsSinceLastCommand))
 
         # Compute position based on time elapsed since last command & command direction
-        setupDuration = self.config.Shutters[shutterId]['duration']
+        setupDurationDown = self.config.Shutters[shutterId]['durationDown']
+        setupDurationUp = self.config.Shutters[shutterId]['durationUp']
 
         fallback = False
-        if secondsSinceLastCommand > 0 and secondsSinceLastCommand < setupDuration:
-            durationPercentage = int(round(secondsSinceLastCommand/setupDuration * 100))
-            self.LogDebug("["+shutterId+"] Duration percentage: " + str(durationPercentage) + ", State position: "+ str(state.position))
-            if state.lastCommandDirection == 'up':
-                if state.position > 0: # after rise from previous position
-                    newPosition = min (100 , state.position + durationPercentage)
-                else: # after rise from fully closed
-                    newPosition = durationPercentage
-            elif state.lastCommandDirection == 'down':
-                if state.position < 100: # after lower from previous position
-                    newPosition = max (0 , state.position - durationPercentage)
-                else: # after down from fully opened
-                    newPosition = 100 - durationPercentage
-            else: # consecutive stops
-                self.LogWarn("["+shutterId+"] Stop pressed while stationary.")
-                fallback = True
-        else:  #fallback
-            self.LogWarn("["+shutterId+"] Too much time since last command.")
+        if state.lastCommandDirection == 'up':
+          if secondsSinceLastCommand > 0 and secondsSinceLastCommand < setupDurationUp:
+            durationPercentage = int(round(secondsSinceLastCommand/setupDurationUp * 100))
+            self.LogDebug("["+shutterId+"] Up duration percentage: " + str(durationPercentage) + ", State position: "+ str(state.position))
+            if state.position > 0: # after rise from previous position
+                newPosition = min (100 , state.position + durationPercentage)
+            else: # after rise from fully closed
+                newPosition = durationPercentage
+          else:  #fallback
+            self.LogWarn("["+shutterId+"] Too much time since up command.")
+            fallback = True
+        elif state.lastCommandDirection == 'down':
+          if secondsSinceLastCommand > 0 and secondsSinceLastCommand < setupDurationDown:
+            durationPercentage = int(round(secondsSinceLastCommand/setupDurationDown * 100))
+            self.LogDebug("["+shutterId+"] Down duration percentage: " + str(durationPercentage) + ", State position: "+ str(state.position))
+            if state.position < 100: # after lower from previous position
+                newPosition = max (0 , state.position - durationPercentage)
+            else: # after down from fully opened
+                newPosition = 100 - durationPercentage
+          else:  #fallback
+            self.LogWarn("["+shutterId+"] Too much time since down command.")
+            fallback = True
+        else: # consecutive stops
+            self.LogWarn("["+shutterId+"] Stop pressed while stationary.")
             fallback = True
 
         if fallback == True: # Let's assume it will end on the intermediate position ! If it exists !
@@ -189,10 +196,11 @@ class Shutter(MyLog):
                 self.LogInfo("["+shutterId+"] Motor expected to move to intermediate position "+str(intermediatePosition))
                 if state.position > intermediatePosition:
                     state.registerCommand('down')
+                    timeToWait = abs(state.position - intermediatePosition) / 100*self.config.Shutters[shutterId]['durationDown']
                 else:
                     state.registerCommand('up')
+                    timeToWait = abs(state.position - intermediatePosition) / 100*self.config.Shutters[shutterId]['durationUp']
                 # wait and set final intermediate position only if not interrupted in between
-                timeToWait = abs(state.position - intermediatePosition) / 100*self.config.Shutters[shutterId]['duration']
                 t = threading.Thread(target = self.waitAndSetFinalPosition, args = (shutterId, timeToWait, intermediatePosition))
                 t.start()
                 return
@@ -313,7 +321,6 @@ class Shutter(MyLog):
                              wf.append(pigpio.pulse(0, 1<<self.TXGPIO, 640))
 
                     wf.append(pigpio.pulse(0, 1<<self.TXGPIO, 30415)) # interframe gap
-                    # time.sleep(0.25) # small pause before repetition, see issue #45
 
            pi.wave_add_generic(wf)
            wid = pi.wave_create()
