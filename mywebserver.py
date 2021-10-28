@@ -79,7 +79,7 @@ class FlaskAppWrapper(MyLog):
             # self.LogDebug("JSON: "+str(request.get_json()))
             # self.LogDebug("RAW: "+str(request.get_data()))
             command = args[1]['command']
-            if command in ["up", "down", "stop", "program", "getConfig", "addSchedule", "editSchedule", "deleteSchedule", "addShutter", "editShutter", "deleteShutter", "setLocation" ]:
+            if command in ["up", "down", "stop", "program", "press", "getConfig", "addSchedule", "editSchedule", "deleteSchedule", "addShutter", "editShutter", "deleteShutter", "setLocation" ]:
                 self.LogInfo("processing Command \"" + command + "\" with parameters: "+str(request.values))
                 result = getattr(self, command)(request.values)
                 return Response(json.dumps(result), status=200)
@@ -151,6 +151,16 @@ class FlaskAppWrapper(MyLog):
         if (not shutter in self.config.Shutters):
             return {'status': 'ERROR', 'message': 'Shutter does not exist'}
         self.shutter.program(shutter)
+        return {'status': 'OK'}
+
+    def press(self, params):
+        shutter=params.get('shutter', 0, type=str)
+        buttons = params.get('buttons', 0, type=int)
+        longPress = params.get('longPress', 0, type=str) == "true"
+        self.LogDebug(("long" if longPress else "short") +" press buttons: \"" +str(buttons)+ "\" shutter \""+shutter+"\"")
+        if (not shutter in self.config.Shutters):
+            return {'status': 'ERROR', 'message': 'Shutter does not exist'}
+        self.shutter.pressButtons(shutter, buttons, longPress)
         return {'status': 'OK'}
 
     def setLocation(self, params):
