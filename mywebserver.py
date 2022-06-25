@@ -202,7 +202,7 @@ class FlaskAppWrapper(MyLog):
             self.config.WriteValue(str(id), str(code), section="ShutterRollingCodes");
             self.config.WriteValue(str(id), str(None), section="ShutterIntermediatePositions");
             self.config.ShuttersByName[name] = id
-            self.config.Shutters[id] = {'name': name, 'code': code, 'duration': duration, 'intermediatePosition': None}
+            self.config.Shutters[id] = {'name': name, 'code': code, 'duration': duration, 'durationDown': int(duration), 'durationUp': int(duration), 'intermediatePosition': None}
             return {'status': 'OK', 'id': id}
 
     def editShutter(self, params):
